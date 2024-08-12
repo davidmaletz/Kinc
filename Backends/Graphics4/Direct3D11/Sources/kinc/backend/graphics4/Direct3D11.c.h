@@ -255,7 +255,7 @@ void kinc_g4_internal_init_window(int windowId, int depthBufferBits, int stencil
 	swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED; // DXGI_SCALING_NONE;
 #ifdef KORE_WINDOWS
 	if (isWindows10OrGreater()) {
-		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		//(DXGI_SWAP_EFFECT) _DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	}
 	else if (isWindows8OrGreater()) {
@@ -385,7 +385,7 @@ void kinc_g4_draw_indexed_vertices_instanced_from_to(int instanceCount, int star
 	kinc_internal_set_constants();
 	dx_ctx.context->lpVtbl->DrawIndexedInstanced(dx_ctx.context, count, instanceCount, start, 0, 0);
 
-	dx_ctx.context->lpVtbl->PSSetShaderResources(dx_ctx.context, 0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullviews);
+	//dx_ctx.context->lpVtbl->PSSetShaderResources(dx_ctx.context, 0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullviews);
 }
 
 static D3D11_TEXTURE_ADDRESS_MODE convertAddressing(kinc_g4_texture_addressing_t addressing) {
@@ -446,6 +446,7 @@ void kinc_g4_clear(unsigned flags, unsigned color, float depth, int stencil) {
 }
 
 void kinc_g4_begin(int windowId) {
+    dx_ctx.context->lpVtbl->PSSetShaderResources(dx_ctx.context, 0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullviews);
 	dx_ctx.current_window = windowId;
 	struct dx_window *window = &dx_ctx.windows[windowId];
 	if (window->new_width != window->width || window->new_height != window->height) {
@@ -495,6 +496,7 @@ void kinc_g4_disable_scissor() {
 }
 
 void kinc_g4_set_pipeline(kinc_g4_pipeline_t *pipeline) {
+	dx_ctx.context->lpVtbl->PSSetShaderResources(dx_ctx.context, 0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullviews);
 	if (pipeline != currentPipeline) {
 		currentPipeline = pipeline;
 		needPipelineRebind = true;
@@ -1102,6 +1104,7 @@ void kinc_g4_restore_render_target() {
 }
 
 void kinc_g4_set_render_targets(struct kinc_g4_render_target **targets, int count) {
+	dx_ctx.context->lpVtbl->PSSetShaderResources(dx_ctx.context, 0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullviews);
 	currentDepthStencilView = targets[0]->impl.depthStencilView[0];
 
 	renderTargetCount = count;
@@ -1121,6 +1124,7 @@ void kinc_g4_set_render_targets(struct kinc_g4_render_target **targets, int coun
 }
 
 void kinc_g4_set_render_target_face(struct kinc_g4_render_target *texture, int face) {
+	dx_ctx.context->lpVtbl->PSSetShaderResources(dx_ctx.context, 0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullviews);
 	renderTargetCount = 1;
 	currentRenderTargetViews[0] = texture->impl.renderTargetViewRender[face];
 	currentDepthStencilView = texture->impl.depthStencilView[face];

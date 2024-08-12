@@ -6,7 +6,7 @@ void kinc_g4_texture_array_init(kinc_g4_texture_array_t *array, kinc_image_t *te
 	desc.Width = textures[0].width;
 	desc.Height = textures[0].height;
 	desc.MipLevels = 1;
-	desc.ArraySize = 2;
+	desc.ArraySize = count;
 	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
@@ -26,9 +26,14 @@ void kinc_g4_texture_array_init(kinc_g4_texture_array_t *array, kinc_image_t *te
 	kinc_microsoft_affirm(dx_ctx.device->lpVtbl->CreateTexture2D(dx_ctx.device, &desc, resdata, &array->impl.texture));
 	kinc_microsoft_affirm(dx_ctx.device->lpVtbl->CreateShaderResourceView(dx_ctx.device, (ID3D11Resource *)array->impl.texture, NULL, &array->impl.view));
 }
-
-void kinc_g4_texture_array_destroy(kinc_g4_texture_array_t *array) {}
-
+void kinc_g4_texture_array_destroy(kinc_g4_texture_array_t *array) {
+    if (array->impl.view != NULL) {
+		array->impl.view->lpVtbl->Release(array->impl.view);
+    }
+	if (array->impl.texture != NULL) {
+		array->impl.texture->lpVtbl->Release(array->impl.texture);
+    }
+}
 void kinc_internal_texture_array_set(kinc_g4_texture_array_t *array, kinc_g4_texture_unit_t unit) {
 	if (unit.stages[KINC_G4_SHADER_TYPE_FRAGMENT] < 0)
 		return;

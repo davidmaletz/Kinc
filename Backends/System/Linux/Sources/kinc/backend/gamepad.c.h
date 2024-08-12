@@ -4,11 +4,14 @@
 
 #include <fcntl.h>
 #include <libudev.h>
-#include <linux/joystick.h>
+#include <linux/input.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <errno.h>
+
+#define ABS_INFO 24
 
 struct HIDGamepad {
 	int idx;
@@ -16,34 +19,31 @@ struct HIDGamepad {
 	char name[385];
 	int file_descriptor;
 	bool connected;
-	struct js_event gamepadEvent;
+	struct input_event gamepadEvent;
+	struct input_absinfo abs[ABS_INFO];
 };
 
-static void HIDGamepad_open(struct HIDGamepad *pad) {
+static int skip[32]; static int skip_ct = 0;
+
+static int eventToIndex(int e){
+	int ct = 0; for(int i=0; i<skip_ct; i++) if(skip[i] == e) return -1; else if(skip[i] < e) ct++; return e-ct;
+}
+
+static bool HIDGamepad_open(struct HIDGamepad *pad, int e) {
 	pad->file_descriptor = open(pad->gamepad_dev_name, O_RDONLY | O_NONBLOCK);
 	if (pad->file_descriptor < 0) {
-		pad->connected = false;
+		pad->connected = false; if(errno == EACCES){if(skip_ct < 32) skip[skip_ct++] = e; return false;}
 	}
 	else {
 		pad->connected = true;
 
 		char buf[128];
-		if (ioctl(pad->file_descriptor, JSIOCGNAME(sizeof(buf)), buf) < 0) {
+		if (ioctl(pad->file_descriptor, EVIOCGNAME(sizeof(buf)), buf) < 0) {
 			strncpy(buf, "Unknown", sizeof(buf));
 		}
+		for(int i=0; i<ABS_INFO; i++) ioctl(pad->file_descriptor, EVIOCGABS(i), &pad->abs[i]);
 		snprintf(pad->name, sizeof(pad->name), "%s(%s)", buf, pad->gamepad_dev_name);
-	}
-}
-
-static void HIDGamepad_init(struct HIDGamepad *pad, int index) {
-	pad->file_descriptor = -1;
-	pad->connected = false;
-	pad->gamepad_dev_name[0] = 0;
-	if (index >= 0 && index < 12) {
-		pad->idx = index;
-		snprintf(pad->gamepad_dev_name, sizeof(pad->gamepad_dev_name), "/dev/input/js%d", pad->idx);
-		HIDGamepad_open(pad);
-	}
+	} return true;
 }
 
 static void HIDGamepad_close(struct HIDGamepad *pad) {
@@ -54,15 +54,22 @@ static void HIDGamepad_close(struct HIDGamepad *pad) {
 	}
 }
 
-void HIDGamepad_processEvent(struct HIDGamepad *pad, struct js_event e) {
+static int KEYS[16] = {BTN_A, BTN_B, BTN_X, BTN_Y, BTN_TL, BTN_TR, BTN_TL2, BTN_TR2, BTN_SELECT, BTN_START, BTN_THUMBL, BTN_THUMBR, BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT};
+
+void HIDGamepad_processEvent(struct HIDGamepad *pad, struct input_event e) {
 	switch (e.type) {
-	case JS_EVENT_BUTTON:
-		kinc_internal_gamepad_trigger_button(pad->idx, e.number, e.value);
+	case EV_KEY:
+		for(int i=0; i<16; i++) if(KEYS[i] == e.code){kinc_internal_gamepad_trigger_button(pad->idx, i, e.value); break;}
 		break;
-	case JS_EVENT_AXIS: {
-		float value = e.number % 2 == 0 ? e.value : -e.value;
-		kinc_internal_gamepad_trigger_axis(pad->idx, e.number, value / 32767.0f);
-		break;
+	case EV_ABS: if(e.code < ABS_INFO){
+		float val = ((float)e.value) / pad->abs[e.code].maximum;
+		switch(e.code){
+			case ABS_Z: kinc_internal_gamepad_trigger_button(pad->idx, 6, val); break;
+			case ABS_RZ: kinc_internal_gamepad_trigger_button(pad->idx, 7, val); break;
+			case ABS_HAT0X: case ABS_HAT1X: case ABS_HAT2X: case ABS_HAT3X: kinc_internal_gamepad_trigger_button(pad->idx, 14, val < 0?-val:0); kinc_internal_gamepad_trigger_button(pad->idx, 15, val < 0?0:val); break;
+			case ABS_HAT0Y: case ABS_HAT1Y: case ABS_HAT2Y: case ABS_HAT3Y: kinc_internal_gamepad_trigger_button(pad->idx, 12, val < 0?-val:0); kinc_internal_gamepad_trigger_button(pad->idx, 13, val < 0?0:val); break;
+			default: kinc_internal_gamepad_trigger_axis(pad->idx, e.code, val); break;
+		} break;
 	}
 	default:
 		break;
@@ -93,18 +100,21 @@ static void HIDGamepadUdevHelper_openOrCloseGamepad(struct HIDGamepadUdevHelper 
 	if (!action)
 		action = "add";
 
-	const char *joystickDevnodeName = strstr(udev_device_get_devnode(dev), "js");
+	const char *joystickDevnodeName = strstr(udev_device_get_devnode(dev), "event");
 
 	if (joystickDevnodeName) {
 		int joystickDevnodeIndex;
-		sscanf(joystickDevnodeName, "js%d", &joystickDevnodeIndex);
+		sscanf(joystickDevnodeName, "event%d", &joystickDevnodeIndex);
+		int i = eventToIndex(joystickDevnodeIndex);
+		if(i >= 0 && i < gamepadCount){
+			if (!strcmp(action, "add")) {
+				snprintf(gamepads[i].gamepad_dev_name, sizeof(gamepads[i].gamepad_dev_name), "/dev/input/event%d", joystickDevnodeIndex);
+				HIDGamepad_open(&gamepads[i], joystickDevnodeIndex);
+			}
 
-		if (!strcmp(action, "add")) {
-			HIDGamepad_open(&gamepads[joystickDevnodeIndex]);
-		}
-
-		if (!strcmp(action, "remove")) {
-			HIDGamepad_close(&gamepads[joystickDevnodeIndex]);
+			if (!strcmp(action, "remove")) {
+				HIDGamepad_close(&gamepads[i]);
+			}
 		}
 	}
 }
@@ -165,8 +175,14 @@ static void HIDGamepadUdevHelper_close(struct HIDGamepadUdevHelper *helper) {
 }
 
 void kinc_linux_initHIDGamepads() {
-	for (int i = 0; i < gamepadCount; ++i) {
-		HIDGamepad_init(&gamepads[i], i);
+	int i=0; int index = 0; while(i < gamepadCount && index < 40){
+		struct HIDGamepad *pad = &gamepads[i];
+		pad->file_descriptor = -1;
+		pad->connected = false;
+		pad->gamepad_dev_name[0] = 0;
+		pad->idx = i;
+		snprintf(pad->gamepad_dev_name, sizeof(pad->gamepad_dev_name), "/dev/input/event%d", index);
+		if(HIDGamepad_open(pad, index)) i++; index++;
 	}
 	HIDGamepadUdevHelper_init(&udev_helper);
 }

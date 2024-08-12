@@ -76,7 +76,7 @@ typedef struct kinc_g4_pipeline {
 
 	kinc_g4_cull_mode_t cull_mode;
 
-	bool depth_write;
+	bool depth_write; bool depth_clip;
 	kinc_g4_compare_mode_t depth_mode;
 
 	kinc_g4_compare_mode_t stencil_front_mode;

@@ -37,7 +37,9 @@ void kinc_a2_init() {
 	a2_buffer.data_size = 128 * 1024;
 	a2_buffer.data = new uint8_t[a2_buffer.data_size];
 
-	kinc_microsoft_affirm(DirectSoundCreate8(nullptr, &dsound, nullptr));
+    if(DirectSoundCreate8(nullptr, &dsound, nullptr) != S_OK){
+        dsound = nullptr; dbuffer = nullptr; fprintf(stderr, "cannot open audio device\n"); return;
+    }
 	// TODO (DK) only for the main window?
 	kinc_microsoft_affirm(dsound->SetCooperativeLevel(kinc_windows_window_handle(0), DSSCL_PRIORITY));
 
@@ -87,6 +89,7 @@ namespace {
 }
 
 void kinc_a2_update() {
+	if (dbuffer == nullptr) return;
 	DWORD playPosition;
 	DWORD writePosition;
 	kinc_microsoft_affirm(dbuffer->GetCurrentPosition(&playPosition, &writePosition));

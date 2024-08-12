@@ -11,7 +11,7 @@ void kinc_g4_internal_pipeline_set_defaults(kinc_g4_pipeline_t *state) {
 
 	state->cull_mode = KINC_G4_CULL_NOTHING;
 
-	state->depth_write = false;
+	state->depth_write = false; state->depth_clip = true;
 	state->depth_mode = KINC_G4_COMPARE_ALWAYS;
 
 	state->stencil_front_mode = KINC_G4_COMPARE_ALWAYS;

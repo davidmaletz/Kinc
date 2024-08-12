@@ -169,7 +169,7 @@ KINC_FUNC int kinc_image_format_sizeof(kinc_image_format_t format);
 
 #include <string.h>
 
-#define BUFFER_SIZE 4096 * 4096 * 4
+#define BUFFER_SIZE 4096 * 4096 * 8
 static uint8_t buffer[BUFFER_SIZE];
 static size_t buffer_offset = 0;
 static uint8_t *last_allocated_pointer = 0;

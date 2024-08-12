@@ -146,6 +146,7 @@ void kinc_g4_render_target_init_with_multisampling(kinc_g4_render_target_t *rend
 			depthStencilDesc.SampleDesc.Count = 1;
 			depthStencilDesc.SampleDesc.Quality = 0;
 		}
+		        renderTarget->impl.ownsDepthStencil = true;
 		kinc_microsoft_affirm(dx_ctx.device->lpVtbl->CreateTexture2D(dx_ctx.device, &depthStencilDesc, NULL, &renderTarget->impl.depthStencil));
 		D3D11_DEPTH_STENCIL_VIEW_DESC viewDesc;
 		viewDesc.Format = depthViewFormat;
@@ -307,6 +308,7 @@ void kinc_g4_render_target_init_cube_with_multisampling(kinc_g4_render_target_t 
 			depthStencilDesc.SampleDesc.Count = 1;
 			depthStencilDesc.SampleDesc.Quality = 0;
 		}
+		        renderTarget->impl.ownsDepthStencil = true;
 		kinc_microsoft_affirm(dx_ctx.device->lpVtbl->CreateTexture2D(dx_ctx.device, &depthStencilDesc, NULL, &renderTarget->impl.depthStencil));
 
 		D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc;
@@ -356,14 +358,14 @@ void kinc_g4_render_target_destroy(kinc_g4_render_target_t *renderTarget) {
 		if (renderTarget->impl.renderTargetViewSample[i] != NULL &&
 		    renderTarget->impl.renderTargetViewSample[i] != renderTarget->impl.renderTargetViewRender[i])
 			renderTarget->impl.renderTargetViewSample[i]->lpVtbl->Release(renderTarget->impl.renderTargetViewSample[i]);
-		if (renderTarget->impl.depthStencilView[i] != NULL)
+		if (renderTarget->impl.ownsDepthStencil  && renderTarget->impl.depthStencilView[i] != NULL)
 			renderTarget->impl.depthStencilView[i]->lpVtbl->Release(renderTarget->impl.depthStencilView[i]);
 	}
 	if (renderTarget->impl.renderTargetSRV != NULL)
 		renderTarget->impl.renderTargetSRV->lpVtbl->Release(renderTarget->impl.renderTargetSRV);
-	if (renderTarget->impl.depthStencilSRV != NULL)
+	if (renderTarget->impl.ownsDepthStencil  && renderTarget->impl.depthStencilSRV != NULL)
 		renderTarget->impl.depthStencilSRV->lpVtbl->Release(renderTarget->impl.depthStencilSRV);
-	if (renderTarget->impl.depthStencil != NULL)
+	if (renderTarget->impl.ownsDepthStencil  && renderTarget->impl.depthStencil != NULL)
 		renderTarget->impl.depthStencil->lpVtbl->Release(renderTarget->impl.depthStencil);
 	if (renderTarget->impl.textureRender != NULL)
 		renderTarget->impl.textureRender->lpVtbl->Release(renderTarget->impl.textureRender);
@@ -406,6 +408,7 @@ void kinc_g4_render_target_use_depth_as_texture(kinc_g4_render_target_t *renderT
 }
 
 void kinc_g4_render_target_set_depth_stencil_from(kinc_g4_render_target_t *renderTarget, kinc_g4_render_target_t *source) {
+	    renderTarget->impl.ownsDepthStencil = false;
 	renderTarget->impl.depthStencil = source->impl.depthStencil;
 	for (int i = 0; i < 6; i++) {
 		renderTarget->impl.depthStencilView[i] = source->impl.depthStencilView[i];

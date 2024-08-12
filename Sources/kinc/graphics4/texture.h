@@ -3,6 +3,7 @@
 #include <kinc/global.h>
 
 #include <kinc/backend/graphics4/texture.h>
+#include <kinc/graphics4/rendertarget.h>
 #include <kinc/image.h>
 
 /*! \file texture.h
@@ -100,6 +101,10 @@ KINC_FUNC void kinc_g4_texture_init_from_id(kinc_g4_texture_t *texture, unsigned
 #if defined(KORE_IOS) || defined(KORE_MACOS)
 KINC_FUNC void kinc_g4_texture_upload(kinc_g4_texture_t *texture, uint8_t *data, int stride);
 #endif
+
+KINC_FUNC int kinc_g4_texture_slice(kinc_g4_texture_t *texture);
+
+KINC_FUNC void kinc_g4_copy_texture(kinc_g4_texture_t *to, kinc_g4_render_target_t *from);
 
 #ifdef __cplusplus
 }

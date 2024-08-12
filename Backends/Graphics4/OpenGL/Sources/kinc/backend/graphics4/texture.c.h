@@ -534,6 +534,16 @@ int kinc_g4_texture_stride(kinc_g4_texture_t *texture) {
 	return texture->tex_width * kinc_image_format_sizeof(texture->format);
 }
 
+int kinc_g4_texture_slice(kinc_g4_texture_t *texture) {
+    return texture->tex_width * texture->tex_height * kinc_image_format_sizeof(texture->format);
+}
+
+void kinc_g4_copy_texture(kinc_g4_texture_t *to, kinc_g4_render_target_t *from) {
+    glBindFramebuffer(GL_FRAMEBUFFER, from->impl._framebuffer);
+    glBindTexture(GL_TEXTURE_2D, to->impl.texture);
+    glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, to->tex_width, to->tex_height);
+}
+
 static uint8_t *lock_cache = NULL;
 
 unsigned char *kinc_g4_texture_lock(kinc_g4_texture_t *texture) {

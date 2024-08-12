@@ -101,7 +101,7 @@ static bool renderToBackbuffer;
 
 static int maxColorAttachments;
 
-static kinc_g4_pipeline_t *lastPipeline = NULL;
+kinc_g4_pipeline_t *lastPipeline;
 
 #if defined(KORE_OPENGL_ES) && defined(KORE_ANDROID) && KORE_ANDROID_API >= 18
 static void *glesDrawBuffers;
@@ -772,9 +772,9 @@ void kinc_g4_clear(unsigned flags, unsigned color, float depth, int stencil) {
 		glEnable(GL_SCISSOR_TEST);
 	}
 
-	if (lastPipeline != NULL) {
+	/*if (lastPipeline != NULL) {
 		kinc_g4_set_pipeline(lastPipeline);
-	}
+	}*/
 }
 
 void kinc_g4_set_vertex_buffers(kinc_g4_vertex_buffer_t **vertexBuffers, int count) {

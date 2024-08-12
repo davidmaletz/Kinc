@@ -101,15 +101,15 @@ static DWORD getStyle(int features) {
 		style |= WS_CAPTION | WS_SYSMENU;
 	}
 
-	if (features & KINC_WINDOW_FEATURE_ON_TOP) {
+	/*if (features & KINC_WINDOW_FEATURE_ON_TOP) {
 		style |= WS_POPUP;
-	}
+	}*/
 
 	return style;
 }
 
 static DWORD getExStyle(int features) {
-	DWORD exStyle = WS_EX_APPWINDOW;
+	DWORD exStyle = WS_EX_APPWINDOW | WS_EX_ACCEPTFILES;
 
 	if ((features & KINC_WINDOW_FEATURE_BORDERLESS) == 0) {
 		exStyle |= WS_EX_WINDOWEDGE;
@@ -160,10 +160,10 @@ int kinc_window_height(int window_index) {
 static DWORD getDwStyle(kinc_window_mode_t mode, int features) {
 	switch (mode) {
 	case KINC_WINDOW_MODE_EXCLUSIVE_FULLSCREEN: {
-		return WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_POPUP;
+		return WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
 	}
 	case KINC_WINDOW_MODE_FULLSCREEN:
-		return WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_POPUP;
+		return WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
 	case KINC_WINDOW_MODE_WINDOW:
 	default:
 		return getStyle(features);
@@ -173,10 +173,10 @@ static DWORD getDwStyle(kinc_window_mode_t mode, int features) {
 static DWORD getDwExStyle(kinc_window_mode_t mode, int features) {
 	switch (mode) {
 	case KINC_WINDOW_MODE_EXCLUSIVE_FULLSCREEN: {
-		return WS_EX_APPWINDOW;
+		return WS_EX_APPWINDOW | WS_EX_ACCEPTFILES;
 	}
 	case KINC_WINDOW_MODE_FULLSCREEN:
-		return WS_EX_APPWINDOW;
+		return WS_EX_APPWINDOW | WS_EX_ACCEPTFILES;
 	case KINC_WINDOW_MODE_WINDOW:
 	default:
 		return getExStyle(features);
@@ -326,21 +326,24 @@ void kinc_window_change_mode(int window_index, kinc_window_mode_t mode) {
 	switch (mode) {
 	case KINC_WINDOW_MODE_WINDOW:
 		kinc_windows_restore_display(display_index);
-		kinc_window_change_features(window_index, win->features);
-		kinc_window_show(window_index);
+		SetWindowLong(win->handle, GWL_STYLE, getStyle(win->features));
+		SetWindowLong(win->handle, GWL_EXSTYLE, getExStyle(win->features));
+		SetWindowPos(win->handle, HWND_NOTOPMOST, 20, 20, win->manualWidth, win->manualHeight, SWP_SHOWWINDOW);
+		ShowWindow(win->handle, SW_RESTORE);
+		UpdateWindow(win->handle);
 		break;
 	case KINC_WINDOW_MODE_FULLSCREEN: {
 		kinc_windows_restore_display(display_index);
-		SetWindowLong(win->handle, GWL_STYLE, WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_POPUP);
-		SetWindowLong(win->handle, GWL_EXSTYLE, WS_EX_APPWINDOW);
+		SetWindowLong(win->handle, GWL_STYLE, WS_CLIPSIBLINGS | WS_CLIPCHILDREN);
+		SetWindowLong(win->handle, GWL_EXSTYLE, WS_EX_APPWINDOW | WS_EX_ACCEPTFILES);
 		SetWindowPos(win->handle, NULL, display_mode.x, display_mode.y, display_mode.width, display_mode.height, 0);
 		kinc_window_show(window_index);
 		break;
 	}
 	case KINC_WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
 		kinc_windows_set_display_mode(display_index, win->manualWidth, win->manualHeight, win->bpp, win->frequency);
-		SetWindowLong(win->handle, GWL_STYLE, WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_POPUP);
-		SetWindowLong(win->handle, GWL_EXSTYLE, WS_EX_APPWINDOW);
+		SetWindowLong(win->handle, GWL_STYLE, WS_CLIPSIBLINGS | WS_CLIPCHILDREN);
+		SetWindowLong(win->handle, GWL_EXSTYLE, WS_EX_APPWINDOW | WS_EX_ACCEPTFILES);
 		SetWindowPos(win->handle, NULL, display_mode.x, display_mode.y, display_mode.width, display_mode.height, 0);
 		kinc_window_show(window_index);
 		break;

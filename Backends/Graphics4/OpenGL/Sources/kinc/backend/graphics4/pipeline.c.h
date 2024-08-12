@@ -235,6 +235,11 @@ void kinc_g4_internal_set_pipeline(kinc_g4_pipeline_t *pipeline) {
 		glCheckErrors();
 	}
 
+    for (int index = 0; index < 12; ++index) {
+        glActiveTexture(GL_TEXTURE0 + index); glBindTexture(GL_TEXTURE_2D, 0);
+        glCheckErrors();
+    }
+
 	if (pipeline->stencil_front_mode == KINC_G4_COMPARE_ALWAYS && pipeline->stencil_back_mode == KINC_G4_COMPARE_ALWAYS &&
 	    pipeline->stencil_front_both_pass == KINC_G4_STENCIL_KEEP && pipeline->stencil_back_both_pass == KINC_G4_STENCIL_KEEP &&
 	    pipeline->stencil_front_depth_fail == KINC_G4_STENCIL_KEEP && pipeline->stencil_back_depth_fail == KINC_G4_STENCIL_KEEP &&
@@ -304,6 +309,13 @@ void kinc_g4_internal_set_pipeline(kinc_g4_pipeline_t *pipeline) {
 	}
 	else {
 		glDepthMask(GL_FALSE);
+	}
+
+	if (pipeline->depth_clip) {
+		glDisable(GL_DEPTH_CLAMP);
+	}
+	else {
+		glEnable(GL_DEPTH_CLAMP);
 	}
 
 	if (pipeline->depth_mode != KINC_G4_COMPARE_ALWAYS) {
@@ -463,6 +475,8 @@ static int findTexture(kinc_g4_pipeline_t *state, const char *name) {
 	return -1;
 }
 
+kinc_g4_pipeline_t *lastPipeline = NULL;
+
 kinc_g4_texture_unit_t kinc_g4_pipeline_get_texture_unit(kinc_g4_pipeline_t *state, const char *name) {
 	int index = findTexture(state, name);
 	if (index < 0) {
@@ -471,7 +485,10 @@ kinc_g4_texture_unit_t kinc_g4_pipeline_get_texture_unit(kinc_g4_pipeline_t *sta
 		index = state->impl.textureCount;
 		state->impl.textureValues[index] = location;
 		strcpy(state->impl.textures[index], name);
-		++state->impl.textureCount;
+        if (lastPipeline == state) {
+            glUniform1i(location, index);
+            glCheckErrors();
+        } ++state->impl.textureCount;
 	}
 	kinc_g4_texture_unit_t unit;
 	for (int i = 0; i < KINC_G4_SHADER_TYPE_COUNT; ++i) {

@@ -822,7 +822,7 @@ void kinc_g4_pipeline_compile(struct kinc_g4_pipeline *state) {
 		rasterDesc.DepthBias = 0;
 		rasterDesc.SlopeScaledDepthBias = 0.0f;
 		rasterDesc.DepthBiasClamp = 0.0f;
-		rasterDesc.DepthClipEnable = TRUE;
+		rasterDesc.DepthClipEnable = state->depth_clip;
 		rasterDesc.ScissorEnable = FALSE;
 		rasterDesc.MultisampleEnable = FALSE;
 		rasterDesc.AntialiasedLineEnable = FALSE;

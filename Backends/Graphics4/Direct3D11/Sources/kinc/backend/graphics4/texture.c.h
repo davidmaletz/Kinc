@@ -135,8 +135,9 @@ void kinc_g4_texture_init(kinc_g4_texture_t *texture, int width, int height, kin
 
 	if (format == KINC_IMAGE_FORMAT_RGBA128) { // for compute
 		desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
-		desc.CPUAccessFlags = 0;
+		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		desc.Usage = D3D11_USAGE_DYNAMIC;
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	}
 	else {
 		desc.Format = convertFormat(format);
@@ -148,14 +149,14 @@ void kinc_g4_texture_init(kinc_g4_texture_t *texture, int width, int height, kin
 	kinc_microsoft_affirm(dx_ctx.device->lpVtbl->CreateTexture2D(dx_ctx.device, &desc, NULL, &texture->impl.texture));
 	kinc_microsoft_affirm(dx_ctx.device->lpVtbl->CreateShaderResourceView(dx_ctx.device, (ID3D11Resource *)texture->impl.texture, NULL, &texture->impl.view));
 
-	if (format == KINC_IMAGE_FORMAT_RGBA128) {
+	/*if (format == KINC_IMAGE_FORMAT_RGBA128) {
 		D3D11_UNORDERED_ACCESS_VIEW_DESC du;
 		du.Format = desc.Format;
 		du.Texture2D.MipSlice = 0;
 		du.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
 		kinc_microsoft_affirm(
 		    dx_ctx.device->lpVtbl->CreateUnorderedAccessView(dx_ctx.device, (ID3D11Resource *)texture->impl.texture, &du, &texture->impl.computeView));
-	}
+	}*/
 }
 
 void kinc_g4_texture_init3d(kinc_g4_texture_t *texture, int width, int height, int depth, kinc_image_format_t format) {
@@ -171,13 +172,13 @@ void kinc_g4_texture_init3d(kinc_g4_texture_t *texture, int width, int height, i
 	desc.Width = width;
 	desc.Height = height;
 	desc.Depth = depth;
-	desc.MipLevels = 0;
+	desc.MipLevels = 1;
 	desc.Usage = D3D11_USAGE_DEFAULT;
-	desc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+	desc.MiscFlags = 0;
 	desc.Format = format == KINC_IMAGE_FORMAT_RGBA32 ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8_UNORM;
-	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET | D3D11_BIND_UNORDERED_ACCESS;
-	desc.Usage = D3D11_USAGE_DEFAULT;
-	desc.CPUAccessFlags = 0;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    desc.Usage = D3D11_USAGE_DYNAMIC;
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 	kinc_microsoft_affirm(dx_ctx.device->lpVtbl->CreateTexture3D(dx_ctx.device, &desc, NULL, &texture->impl.texture3D));
 	kinc_microsoft_affirm(dx_ctx.device->lpVtbl->CreateShaderResourceView(dx_ctx.device, (ID3D11Resource *)texture->impl.texture3D, NULL, &texture->impl.view));
@@ -250,13 +251,16 @@ void kinc_internal_texture_unset(kinc_g4_texture_t *texture) {
 
 uint8_t *kinc_g4_texture_lock(kinc_g4_texture_t *texture) {
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
-	kinc_microsoft_affirm(dx_ctx.context->lpVtbl->Map(dx_ctx.context, (ID3D11Resource *)texture->impl.texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource));
+	ID3D11Resource *r; if(texture->tex_depth > 1) r = (ID3D11Resource *)texture->impl.texture3D; else r = (ID3D11Resource *)texture->impl.texture;
+	kinc_microsoft_affirm(dx_ctx.context->lpVtbl->Map(dx_ctx.context, r, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource));
 	texture->impl.rowPitch = mappedResource.RowPitch;
+	texture->impl.depthPitch = mappedResource.DepthPitch;
 	return (uint8_t *)mappedResource.pData;
 }
 
 void kinc_g4_texture_unlock(kinc_g4_texture_t *texture) {
-	dx_ctx.context->lpVtbl->Unmap(dx_ctx.context, (ID3D11Resource *)texture->impl.texture, 0);
+	ID3D11Resource *r; if(texture->tex_depth > 1) r = (ID3D11Resource *)texture->impl.texture3D; else r = (ID3D11Resource *)texture->impl.texture;
+	dx_ctx.context->lpVtbl->Unmap(dx_ctx.context, r, 0);
 }
 
 void kinc_g4_texture_clear(kinc_g4_texture_t *texture, int x, int y, int z, int width, int height, int depth, unsigned color) {
@@ -277,6 +281,10 @@ void kinc_g4_texture_clear(kinc_g4_texture_t *texture, int x, int y, int z, int 
 int kinc_g4_texture_stride(kinc_g4_texture_t *texture) {
 	assert(texture->impl.rowPitch != 0); // stride is not yet said, lock and unlock the texture first (or find a good fix for this and send a PR)
 	return texture->impl.rowPitch;
+}
+
+int kinc_g4_texture_slice(kinc_g4_texture_t *texture) {
+    return texture->impl.depthPitch;
 }
 
 static void enableMipmaps(kinc_g4_texture_t *texture, int texWidth, int texHeight, int format) {
@@ -341,4 +349,9 @@ void kinc_g4_texture_set_mipmap(kinc_g4_texture_t *texture, kinc_image_t *mipmap
 	dstRegion.back = 1;
 	dx_ctx.context->lpVtbl->UpdateSubresource(dx_ctx.context, (ID3D11Resource *)texture->impl.texture, level, &dstRegion, mipmap->data,
 	                                          mipmap->width * formatByteSize(mipmap->format), 0);
+}
+
+
+void kinc_g4_copy_texture(kinc_g4_texture_t *to, kinc_g4_render_target_t *from) {
+	dx_ctx.context->lpVtbl->CopyResource(dx_ctx.context, (ID3D11Resource *)to->impl.texture, (ID3D11Resource *)from->impl.textureSample);
 }

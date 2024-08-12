@@ -375,7 +375,7 @@ void kinc_g4_render_target_use_depth_as_texture(kinc_g4_render_target_t *renderT
 void kinc_g4_render_target_set_depth_stencil_from(kinc_g4_render_target_t *renderTarget, kinc_g4_render_target_t *source) {
 	renderTarget->impl._depthTexture = source->impl._depthTexture;
 	glBindFramebuffer(GL_FRAMEBUFFER, renderTarget->impl._framebuffer);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, renderTarget->isCubeMap ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D, renderTarget->impl._depthTexture,
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, renderTarget->isCubeMap ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D, renderTarget->impl._depthTexture,
 	                       0);
 }
 

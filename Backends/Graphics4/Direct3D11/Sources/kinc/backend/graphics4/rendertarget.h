@@ -19,7 +19,7 @@ typedef struct {
 	struct ID3D11DepthStencilView *depthStencilView[6];
 	struct ID3D11ShaderResourceView *renderTargetSRV;
 	struct ID3D11ShaderResourceView *depthStencilSRV;
-	int format;
+	    int format; bool ownsDepthStencil;
 } kinc_g4_render_target_impl_t;
 
 #ifdef __cplusplus

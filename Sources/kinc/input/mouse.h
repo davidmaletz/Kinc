@@ -248,7 +248,7 @@ void kinc_internal_mouse_trigger_move(int window, int x, int y) {
 			kinc_mouse_set_position(window, centerX, centerY);
 			x = centerX;
 			y = centerY;
-		}
+		} if(!moved){movementX = 0; movementY = 0;}
 	}
 	else if (moved) {
 		movementX = x - lastX;
@@ -271,6 +271,7 @@ void kinc_mouse_lock(int window) {
 	if (!kinc_mouse_can_lock()) {
 		return;
 	}
+	moved = false;
 	locked = true;
 	kinc_internal_mouse_lock(window);
 	kinc_mouse_get_position(window, &preLockX, &preLockY);

@@ -1238,7 +1238,7 @@ static bool co_initialized = false;
 
 void kinc_windows_co_initialize(void) {
 	if (!co_initialized) {
-		kinc_microsoft_affirm(CoInitializeEx(0, COINIT_MULTITHREADED));
+		CoInitializeEx(0, COINIT_MULTITHREADED);
 		co_initialized = true;
 	}
 }
@@ -1248,13 +1248,9 @@ static char savePath[2048] = {0};
 
 static void findSavePath() {
 	kinc_windows_co_initialize();
-	IKnownFolderManager *folders = NULL;
-	CoCreateInstance(&CLSID_KnownFolderManager, NULL, CLSCTX_INPROC_SERVER, &IID_IKnownFolderManager, (LPVOID *)&folders);
-	IKnownFolder *folder = NULL;
-	folders->lpVtbl->GetFolder(folders, &FOLDERID_SavedGames, &folder);
 
 	LPWSTR path;
-	folder->lpVtbl->GetPath(folder, 0, &path);
+	SHGetKnownFolderPath(&FOLDERID_SavedGames, KF_FLAG_CREATE, NULL, &path);
 
 	wcscpy(savePathw, path);
 	wcscat(savePathw, L"\\");
@@ -1267,8 +1263,6 @@ static void findSavePath() {
 	WideCharToMultiByte(CP_UTF8, 0, savePathw, -1, savePath, 1024, NULL, NULL);
 
 	CoTaskMemFree(path);
-	folder->lpVtbl->Release(folder);
-	folders->lpVtbl->Release(folders);
 	// CoUninitialize();
 }
 
@@ -1409,7 +1403,7 @@ int kinc_init(const char *name, int width, int height, kinc_window_options_t *wi
 
 	int window = kinc_window_create(win, frame);
 	loadXInput();
-	initializeDirectInput();
+	//initializeDirectInput();
 	return window;
 }
 
@@ -1422,14 +1416,17 @@ void kinc_internal_shutdown() {
 }
 
 void kinc_copy_to_clipboard(const char *text) {
-	wchar_t wtext[4096];
-	MultiByteToWideChar(CP_UTF8, 0, text, -1, wtext, 4096);
+    int len = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
+    if(len <= 0) return;
+	wchar_t* wtext = (wchar_t*)malloc(sizeof(wchar_t)*len);
+    MultiByteToWideChar(CP_UTF8, 0, text, -1, wtext, len);
 	OpenClipboard(kinc_windows_window_handle(0));
 	EmptyClipboard();
-	size_t size = (wcslen(wtext) + 1) * sizeof(wchar_t);
+	size_t size = (len + 1) * sizeof(wchar_t);
 	HANDLE handle = GlobalAlloc(GMEM_MOVEABLE, size);
 	void *data = GlobalLock(handle);
 	memcpy(data, wtext, size);
+	free(wtext);
 	GlobalUnlock(handle);
 	SetClipboardData(CF_UNICODETEXT, handle);
 	CloseClipboard();
